@@ -140,6 +140,7 @@ All configuration is via environment variables in `.env`:
 | `DISCORD_GUILD_ID` | ❌ | — | Guild ID for instant command registration |
 | `CRON_SCHEDULE` | ❌ | `0 8 * * 1-5` | Cron for daily prompt (weekdays 08:00) |
 | `TIMEZONE` | ❌ | `Europe/Amsterdam` | Timezone for scheduling |
+| `DAYS_OFF` | ❌ | — | Comma-separated regular day(s) off to skip prompts (e.g. `wed` or `wed,fri`, also supports `0-6` with Sun=0) |
 
 ---
 

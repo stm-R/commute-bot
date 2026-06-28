@@ -7,6 +7,9 @@ services:
       DISCORD_TOKEN: ${DISCORD_TOKEN}
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
       DISCORD_CHANNEL_ID: ${DISCORD_CHANNEL_ID}
+      CRON_SCHEDULE: ${CRON_SCHEDULE}
+      TIMEZONE: ${TIMEZONE}
+      DAYS_OFF: ${DAYS_OFF}
 
       # ── Optional ──────────────────────────────────────────────────────────
       # Cron schedule for the daily prompt (default: weekdays at 08:00)

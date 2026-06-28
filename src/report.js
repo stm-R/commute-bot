@@ -1,5 +1,5 @@
 const { getMonthEntries } = require('./storage');
-const { COMMUTE_TYPES } = require('./config');
+const { COMMUTE_TYPES, DAYS_OFF } = require('./config');
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -33,29 +33,42 @@ function generateReport(year, month) {
     const date = new Date(year, month, day);
     const dayOfWeek = date.getDay(); // 0 = Sun, 6 = Sat
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isConfiguredDayOff = DAYS_OFF.includes(dayOfWeek);
+    const isNonWorkDay = isWeekend || isConfiguredDayOff;
     const dayLabel = DAY_NAMES[dayOfWeek];
 
     const logged = entries[dateStr];
 
-    if (isWeekend && !logged) {
-      // Weekend with no override
-      lines.push(`${dateStr} (${dayLabel}) - 🌅 Weekend`);
-    } else if (logged) {
-      // Either a weekday or a weekend with override
+    // Show regular configured days off as blank entries unless manually overridden.
+    if (isConfiguredDayOff && !logged) {
+      lines.push(`${dateStr} (${dayLabel}) -`);
+      continue;
+    }
+
+    // Priority:
+    // 1) Logged commute
+    // 2) Day off / weekend (when not logged)
+    // 3) Not logged
+    if (logged) {
+      // Either a workday or a non-work day with override
       const commuteType = COMMUTE_TYPES.find(t => t.id === logged);
       const label = commuteType ? `${commuteType.emoji} ${commuteType.label}` : logged;
-      const tag = isWeekend ? ' (weekend)' : '';
+      const tag = isWeekend ? ' (weekend)' : (isConfiguredDayOff ? ' (day off)' : '');
       lines.push(`${dateStr} (${dayLabel}) - ${label}${tag}`);
 
-      if (!isWeekend) {
+      if (!isNonWorkDay) {
         workDays++;
         loggedDays++;
       }
 
-      // Add to summary (weekday entries only for the count, but track all)
-      if (!isWeekend) {
+      // Add to summary for workdays only
+      if (!isNonWorkDay) {
         summary[logged] = (summary[logged] || 0) + 1;
       }
+    } else if (isNonWorkDay) {
+      // Non-work day with no override
+      const nonWorkLabel = '🌅 Weekend';
+      lines.push(`${dateStr} (${dayLabel}) - ${nonWorkLabel}`);
     } else {
       // Weekday, not logged
       workDays++;

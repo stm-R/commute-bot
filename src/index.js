@@ -2,7 +2,7 @@ const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle,
 const cron = require('node-cron');
 const storage = require('./storage');
 const { generateReport } = require('./report');
-const { COMMUTE_TYPES, COMMUTE_EMOJI, CRON_SCHEDULE, TIMEZONE, TARGET_CHANNEL_ID } = require('./config');
+const { COMMUTE_TYPES, COMMUTE_EMOJI, CRON_SCHEDULE, TIMEZONE, DAYS_OFF, TARGET_CHANNEL_ID } = require('./config');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
@@ -48,6 +48,18 @@ function buildCommuteMessage(dateStr, opts = {}) {
 
 // ─── Send the daily prompt ──────────────────────────────────────────────────
 async function sendDailyPrompt() {
+  const weekdayAbbrev = new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    timeZone: TIMEZONE
+  }).format(new Date());
+  const weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const weekday = weekdayMap[weekdayAbbrev];
+
+  if (DAYS_OFF.includes(weekday)) {
+    console.log(`[Bot] Skipping daily prompt for configured day off (weekday=${weekday})`);
+    return;
+  }
+
   const channel = await client.channels.fetch(TARGET_CHANNEL_ID).catch(() => null);
   if (!channel) {
     console.error(`[Bot] Could not find channel ${TARGET_CHANNEL_ID}`);
@@ -216,7 +228,7 @@ function buildReportEmbed(report) {
       { name: 'Logged days', value: `${report.loggedDays}`, inline: true },
       { name: 'Missing', value: `${report.missingDays}`, inline: true }
     )
-    .setFooter({ text: 'Weekends shown as "Weekend" unless overridden with /log' });
+    .setFooter({ text: 'Weekends are shown. Configured day-off weekdays appear as blank unless overridden with /log' });
 
   if (Object.keys(report.summary).length > 0) {
     const summaryLines = Object.entries(report.summary)
@@ -339,6 +351,7 @@ async function handleHelp(interaction) {
 client.once('clientReady', () => {
   console.log(`[Bot] Logged in as ${client.user.tag}`);
   console.log(`[Bot] Scheduling daily prompt: ${CRON_SCHEDULE} (${TIMEZONE})`);
+  console.log(`[Bot] Configured days off: ${DAYS_OFF.length ? DAYS_OFF.join(',') : 'none'}`);
 
   // Schedule daily prompt on weekdays
   cron.schedule(CRON_SCHEDULE, sendDailyPrompt, { timezone: TIMEZONE });
