@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
 const cron = require('node-cron');
 const storage = require('./storage');
 const { generateReport } = require('./report');
@@ -98,10 +98,9 @@ client.on('interactionCreate', async interaction => {
     }
 
     // ── Select menus ────────────────────────────────────────────────────────
-    const isStringSelect = typeof interaction.isStringSelectMenu === 'function' && interaction.isStringSelectMenu();
-    const isLegacySelect = typeof interaction.isSelectMenu === 'function' && interaction.isSelectMenu();
-    if (isStringSelect || isLegacySelect) {
-      console.log(`[Debug] Select menu detected | string=${isStringSelect} legacy=${isLegacySelect} customId=${interaction.customId}`);
+    const isStringSelect = interaction.isStringSelectMenu();
+    if (isStringSelect) {
+      console.log(`[Debug] Select menu detected | string=${isStringSelect} customId=${interaction.customId}`);
       const [prefix, action, userId] = interaction.customId.split(':');
       if (prefix === 'report' && action === 'month') {
         await handleReportMonthSelect(interaction, userId);
@@ -144,7 +143,7 @@ client.on('interactionCreate', async interaction => {
     console.error('[Debug] interactionCreate handler error:', err);
     try {
       if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-        await interaction.reply({ content: '❌ Something went wrong while handling this interaction.', ephemeral: true });
+        await interaction.reply({ content: '❌ Something went wrong while handling this interaction.', flags: MessageFlags.Ephemeral });
       }
     } catch (replyErr) {
       console.error('[Debug] Failed to send error reply:', replyErr);
@@ -174,14 +173,14 @@ async function handleReport(interaction) {
   if (monthArg) {
     const parts = monthArg.match(/^(\d{4})-(\d{2})$/);
     if (!parts) {
-      return interaction.reply({ content: '❌ Invalid month format. Use `YYYY-MM` e.g. `2025-06`', ephemeral: true });
+      return interaction.reply({ content: '❌ Invalid month format. Use `YYYY-MM` e.g. `2025-06`', flags: MessageFlags.Ephemeral });
     }
 
     const year = parseInt(parts[1]);
     const month = parseInt(parts[2]) - 1; // 0-indexed
     const report = generateReport(year, month);
     const embed = buildReportEmbed(report);
-    return interaction.reply({ embeds: [embed], ephemeral: true });
+    return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
   }
 
   const menu = buildReportMonthMenu(interaction.user.id);
@@ -190,7 +189,7 @@ async function handleReport(interaction) {
   await interaction.reply({
     content: 'Select a month from the picker below. The report is generated immediately after selection.',
     components: [row],
-    ephemeral: true
+    flags: MessageFlags.Ephemeral
   });
 }
 
@@ -249,7 +248,7 @@ async function handleReportMonthSelect(interaction, expectedUserId) {
   if (interaction.user.id !== expectedUserId) {
     await interaction.reply({
       content: '❌ This month picker belongs to another user. Run /report to open your own picker.',
-      ephemeral: true
+      flags: MessageFlags.Ephemeral
     });
     return;
   }
@@ -285,7 +284,7 @@ async function handleManualLog(interaction) {
   let dateStr;
   if (dateArg) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateArg)) {
-      return interaction.reply({ content: '❌ Invalid date format. Use `YYYY-MM-DD`', ephemeral: true });
+      return interaction.reply({ content: '❌ Invalid date format. Use `YYYY-MM-DD`', flags: MessageFlags.Ephemeral });
     }
     dateStr = dateArg;
   } else {
@@ -294,7 +293,7 @@ async function handleManualLog(interaction) {
 
   const commuteType = COMMUTE_TYPES.find(t => t.id === commuteId);
   if (!commuteType) {
-    return interaction.reply({ content: '❌ Unknown commute type.', ephemeral: true });
+    return interaction.reply({ content: '❌ Unknown commute type.', flags: MessageFlags.Ephemeral });
   }
 
   storage.setEntry(dateStr, commuteId);
@@ -305,7 +304,7 @@ async function handleManualLog(interaction) {
     .setDescription(`**${dateStr}**\n${commuteType.emoji} ${commuteType.label}`)
     .setTimestamp();
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
   console.log(`[Bot] Manual log ${dateStr}: ${commuteId}`);
 }
 
@@ -344,7 +343,7 @@ async function handleHelp(interaction) {
     )
     .setFooter({ text: 'Weekend days appear as "Weekend" in reports unless you log them with /log' });
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
 // ─── Bot ready ───────────────────────────────────────────────────────────────
