@@ -2,9 +2,8 @@
 // Add or remove types here as needed
 const COMMUTE_TYPES = [
   { id: 'car',         label: 'Car',             emoji: '🚗' },
-  { id: 'carpool',     label: 'Carpool',          emoji: '🚙' },
+  { id: 'motorcycle',  label: 'Motorcycle',       emoji: '🏍️' },
   { id: 'bike',        label: 'Bike',             emoji: '🚲' },
-  { id: 'ebike',       label: 'E-Bike',           emoji: '⚡' },
   { id: 'public',      label: 'Public Transport', emoji: '🚌' },
   { id: 'walk',        label: 'Walking',          emoji: '🚶' },
   { id: 'wfh',         label: 'Work From Home',   emoji: '🏠' },
