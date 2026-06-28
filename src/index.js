@@ -9,9 +9,21 @@ const client = new Client({
 });
 
 function logInteractionDebug(interaction, context) {
+  const kind = interaction.isChatInputCommand()
+    ? 'chat-input'
+    : interaction.isButton()
+      ? 'button'
+      : interaction.isStringSelectMenu()
+        ? 'string-select'
+        : `type-${interaction.type}`;
+
+  const target = interaction.isChatInputCommand()
+    ? interaction.commandName
+    : (interaction.customId || '-');
+
   const values = Array.isArray(interaction.values) ? interaction.values.join(',') : 'n/a';
   console.log(
-    `[Debug] ${context} | type=${interaction.type} command=${interaction.commandName || 'n/a'} customId=${interaction.customId || 'n/a'} user=${interaction.user?.id || 'n/a'} values=${values}`
+    `[Debug] ${context} | kind=${kind} target=${target} user=${interaction.user?.id || '-'} values=${values}`
   );
 }
 
