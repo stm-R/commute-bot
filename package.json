@@ -1,0 +1,14 @@
+{
+  "name": "commute-bot",
+  "version": "1.0.0",
+  "description": "Daily commute logger Discord bot",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "register": "node src/register-commands.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "node-cron": "^3.0.3"
+  }
+}

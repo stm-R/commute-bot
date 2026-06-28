@@ -1,0 +1,25 @@
+services:
+  commute-bot:
+    build: .
+    restart: unless-stopped
+    environment:
+      # ── Required ──────────────────────────────────────────────────────────
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
+      DISCORD_CHANNEL_ID: ${DISCORD_CHANNEL_ID}
+
+      # ── Optional ──────────────────────────────────────────────────────────
+      # Cron schedule for the daily prompt (default: weekdays at 08:00)
+      # CRON_SCHEDULE: "0 8 * * 1-5"
+
+      # Timezone for scheduling (default: Europe/Amsterdam)
+      # TIMEZONE: "Europe/Amsterdam"
+
+      # Guild ID for instant slash command registration (optional)
+      # DISCORD_GUILD_ID: ${DISCORD_GUILD_ID}
+
+    volumes:
+      - commute-data:/data
+
+volumes:
+  commute-data:
