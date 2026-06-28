@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder } = require('discord.js');
 const cron = require('node-cron');
 const storage = require('./storage');
 const { generateReport } = require('./report');
@@ -7,6 +7,13 @@ const { COMMUTE_TYPES, COMMUTE_EMOJI, CRON_SCHEDULE, TIMEZONE, TARGET_CHANNEL_ID
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
+
+function logInteractionDebug(interaction, context) {
+  const values = Array.isArray(interaction.values) ? interaction.values.join(',') : 'n/a';
+  console.log(
+    `[Debug] ${context} | type=${interaction.type} command=${interaction.commandName || 'n/a'} customId=${interaction.customId || 'n/a'} user=${interaction.user?.id || 'n/a'} values=${values}`
+  );
+}
 
 // ─── Build the daily commute question message ───────────────────────────────
 function buildCommuteMessage(dateStr, opts = {}) {
@@ -61,50 +68,75 @@ async function sendDailyPrompt() {
 
 // ─── Handle button interactions ─────────────────────────────────────────────
 client.on('interactionCreate', async interaction => {
-  // ── Slash commands ────────────────────────────────────────────────────────
-  if (interaction.isChatInputCommand()) {
-    if (interaction.commandName === 'report') {
-      await handleReport(interaction);
-    } else if (interaction.commandName === 'log') {
-      await handleManualLog(interaction);
-    } else if (interaction.commandName === 'test') {
-      await handleTestPrompt(interaction);
-    } else if (interaction.commandName === 'help') {
-      await handleHelp(interaction);
+  try {
+    logInteractionDebug(interaction, 'Received interaction');
+
+    // ── Slash commands ──────────────────────────────────────────────────────
+    if (interaction.isChatInputCommand()) {
+      if (interaction.commandName === 'report') {
+        await handleReport(interaction);
+      } else if (interaction.commandName === 'log') {
+        await handleManualLog(interaction);
+      } else if (interaction.commandName === 'test') {
+        await handleTestPrompt(interaction);
+      } else if (interaction.commandName === 'help') {
+        await handleHelp(interaction);
+      }
+      return;
     }
-    return;
-  }
 
-  // ── Button clicks ─────────────────────────────────────────────────────────
-  if (!interaction.isButton()) return;
+    // ── Select menus ────────────────────────────────────────────────────────
+    const isStringSelect = typeof interaction.isStringSelectMenu === 'function' && interaction.isStringSelectMenu();
+    const isLegacySelect = typeof interaction.isSelectMenu === 'function' && interaction.isSelectMenu();
+    if (isStringSelect || isLegacySelect) {
+      console.log(`[Debug] Select menu detected | string=${isStringSelect} legacy=${isLegacySelect} customId=${interaction.customId}`);
+      const [prefix, action, userId] = interaction.customId.split(':');
+      if (prefix === 'report' && action === 'month') {
+        await handleReportMonthSelect(interaction, userId);
+      }
+      return;
+    }
 
-  const [prefix, dateStr, commuteId] = interaction.customId.split(':');
-  if (prefix !== 'commute' && prefix !== 'commute_test') return;
+    // ── Button clicks ───────────────────────────────────────────────────────
+    if (!interaction.isButton()) return;
 
-  const commuteType = COMMUTE_TYPES.find(t => t.id === commuteId);
-  if (!commuteType) return;
+    const [prefix, dateStr, commuteId] = interaction.customId.split(':');
+    if (prefix !== 'commute' && prefix !== 'commute_test') return;
 
-  const isTestInteraction = prefix === 'commute_test';
+    const commuteType = COMMUTE_TYPES.find(t => t.id === commuteId);
+    if (!commuteType) return;
 
-  if (!isTestInteraction) {
-    storage.setEntry(dateStr, commuteType.id);
-  }
+    const isTestInteraction = prefix === 'commute_test';
 
-  // Update the message to show confirmation and remove buttons
-  const embed = new EmbedBuilder()
-    .setColor(isTestInteraction ? 0xFEE75C : 0x57F287)
-    .setTitle(isTestInteraction ? '🧪 Test Selection Recorded' : '✅ Commute Logged')
-    .setDescription(isTestInteraction
-      ? `Would log:\n**${dateStr}**\n${commuteType.emoji} ${commuteType.label}`
-      : `**${dateStr}**\n${commuteType.emoji} ${commuteType.label}`)
-    .setFooter({ text: isTestInteraction ? 'Test mode only: no data was saved' : 'You can change this with /log' })
-    .setTimestamp();
+    if (!isTestInteraction) {
+      storage.setEntry(dateStr, commuteType.id);
+    }
 
-  await interaction.update({ embeds: [embed], components: [] });
-  if (isTestInteraction) {
-    console.log(`[Bot] Test selection ${dateStr}: ${commuteType.id} (not persisted)`);
-  } else {
-    console.log(`[Bot] Logged ${dateStr}: ${commuteType.id}`);
+    // Update the message to show confirmation and remove buttons
+    const embed = new EmbedBuilder()
+      .setColor(isTestInteraction ? 0xFEE75C : 0x57F287)
+      .setTitle(isTestInteraction ? '🧪 Test Selection Recorded' : '✅ Commute Logged')
+      .setDescription(isTestInteraction
+        ? `Would log:\n**${dateStr}**\n${commuteType.emoji} ${commuteType.label}`
+        : `**${dateStr}**\n${commuteType.emoji} ${commuteType.label}`)
+      .setFooter({ text: isTestInteraction ? 'Test mode only: no data was saved' : 'You can change this with /log' })
+      .setTimestamp();
+
+    await interaction.update({ embeds: [embed], components: [] });
+    if (isTestInteraction) {
+      console.log(`[Bot] Test selection ${dateStr}: ${commuteType.id} (not persisted)`);
+    } else {
+      console.log(`[Bot] Logged ${dateStr}: ${commuteType.id}`);
+    }
+  } catch (err) {
+    console.error('[Debug] interactionCreate handler error:', err);
+    try {
+      if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
+        await interaction.reply({ content: '❌ Something went wrong while handling this interaction.', ephemeral: true });
+      }
+    } catch (replyErr) {
+      console.error('[Debug] Failed to send error reply:', replyErr);
+    }
   }
 });
 
@@ -123,26 +155,58 @@ async function handleTestPrompt(interaction) {
 
 // ─── /report command ─────────────────────────────────────────────────────────
 async function handleReport(interaction) {
-  await interaction.deferReply({ ephemeral: true });
-
+  console.log(`[Debug] /report invoked by ${interaction.user.id}`);
   const monthArg = interaction.options.getString('month'); // e.g. "2025-06"
-  let year, month;
+  console.log(`[Debug] /report month argument: ${monthArg || 'none'}`);
 
   if (monthArg) {
     const parts = monthArg.match(/^(\d{4})-(\d{2})$/);
     if (!parts) {
-      return interaction.editReply('❌ Invalid month format. Use `YYYY-MM` e.g. `2025-06`');
+      return interaction.reply({ content: '❌ Invalid month format. Use `YYYY-MM` e.g. `2025-06`', ephemeral: true });
     }
-    year = parseInt(parts[1]);
-    month = parseInt(parts[2]) - 1; // 0-indexed
-  } else {
-    const now = new Date();
-    year = now.getFullYear();
-    month = now.getMonth();
+
+    const year = parseInt(parts[1]);
+    const month = parseInt(parts[2]) - 1; // 0-indexed
+    const report = generateReport(year, month);
+    const embed = buildReportEmbed(report);
+    return interaction.reply({ embeds: [embed], ephemeral: true });
   }
 
-  const report = generateReport(year, month);
+  const menu = buildReportMonthMenu(interaction.user.id);
+  const row = new ActionRowBuilder().addComponents(menu);
 
+  await interaction.reply({
+    content: 'Select a month from the picker below. The report is generated immediately after selection.',
+    components: [row],
+    ephemeral: true
+  });
+}
+
+function buildReportMonthMenu(userId) {
+  const now = new Date();
+  const options = [];
+
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const value = `${year}-${String(month + 1).padStart(2, '0')}`;
+    const label = `${d.toLocaleString('en-US', { month: 'long' })} ${year}`;
+
+    options.push({
+      label,
+      value,
+      description: i === 0 ? 'Current month' : undefined
+    });
+  }
+
+  return new StringSelectMenuBuilder()
+    .setCustomId(`report:month:${userId}`)
+    .setPlaceholder('Choose a month')
+    .addOptions(options);
+}
+
+function buildReportEmbed(report) {
   const embed = new EmbedBuilder()
     .setColor(0x5865F2)
     .setTitle(`📋 Commute Report — ${report.monthLabel}`)
@@ -154,7 +218,6 @@ async function handleReport(interaction) {
     )
     .setFooter({ text: 'Weekends shown as "Weekend" unless overridden with /log' });
 
-  // Summary by type
   if (Object.keys(report.summary).length > 0) {
     const summaryLines = Object.entries(report.summary)
       .map(([id, count]) => {
@@ -165,7 +228,41 @@ async function handleReport(interaction) {
     embed.addFields({ name: 'Summary', value: summaryLines });
   }
 
-  await interaction.editReply({ embeds: [embed] });
+  return embed;
+}
+
+async function handleReportMonthSelect(interaction, expectedUserId) {
+  logInteractionDebug(interaction, 'Handling report month select');
+  console.log(`[Debug] Expected user for picker: ${expectedUserId}`);
+  if (interaction.user.id !== expectedUserId) {
+    await interaction.reply({
+      content: '❌ This month picker belongs to another user. Run /report to open your own picker.',
+      ephemeral: true
+    });
+    return;
+  }
+
+  const monthArg = interaction.values[0];
+  console.log(`[Debug] Selected month value: ${monthArg}`);
+  const parts = monthArg.match(/^(\d{4})-(\d{2})$/);
+  if (!parts) {
+    await interaction.update({
+      content: '❌ Could not parse selected month. Please run /report again.',
+      components: []
+    });
+    return;
+  }
+
+  const year = parseInt(parts[1]);
+  const month = parseInt(parts[2]) - 1;
+
+  const report = generateReport(year, month);
+  const embed = buildReportEmbed(report);
+  await interaction.update({
+    content: `Selected month: **${monthArg}**`,
+    embeds: [embed],
+    components: []
+  });
 }
 
 // ─── /log command (manual entry / weekend override) ─────────────────────────
@@ -214,7 +311,7 @@ async function handleHelp(interaction) {
       },
       {
         name: '/report [month]',
-        value: 'Generate a monthly commute report.\n`month` is optional, format `YYYY-MM` (defaults to current month).\nExample: `/report month:2025-06`'
+        value: 'Generate a monthly commute report.\nIf `month` is omitted, you can choose a month from a picker.\nOptional `month` format: `YYYY-MM` (example: `/report month:2025-06`).'
       },
       {
         name: '/log [date] <type>',
