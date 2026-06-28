@@ -146,7 +146,7 @@ async function handleReport(interaction) {
   const embed = new EmbedBuilder()
     .setColor(0x5865F2)
     .setTitle(`📋 Commute Report — ${report.monthLabel}`)
-    .setDescription(report.lines.join('\n'))
+    .setDescription(`\`\`\`text\n${report.lines.join('\n')}\n\`\`\``)
     .addFields(
       { name: 'Total work days', value: `${report.workDays}`, inline: true },
       { name: 'Logged days', value: `${report.loggedDays}`, inline: true },

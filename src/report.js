@@ -39,13 +39,13 @@ function generateReport(year, month) {
 
     if (isWeekend && !logged) {
       // Weekend with no override
-      lines.push(`\`${dateStr}\` (${dayLabel}) — 🌅 Weekend`);
+      lines.push(`${dateStr} (${dayLabel}) - 🌅 Weekend`);
     } else if (logged) {
       // Either a weekday or a weekend with override
       const commuteType = COMMUTE_TYPES.find(t => t.id === logged);
       const label = commuteType ? `${commuteType.emoji} ${commuteType.label}` : logged;
-      const tag = isWeekend ? ' *(weekend)*' : '';
-      lines.push(`\`${dateStr}\` (${dayLabel}) — ${label}${tag}`);
+      const tag = isWeekend ? ' (weekend)' : '';
+      lines.push(`${dateStr} (${dayLabel}) - ${label}${tag}`);
 
       if (!isWeekend) {
         workDays++;
@@ -60,7 +60,7 @@ function generateReport(year, month) {
       // Weekday, not logged
       workDays++;
       missingDays++;
-      lines.push(`\`${dateStr}\` (${dayLabel}) — ❓ *Not logged*`);
+      lines.push(`${dateStr} (${dayLabel}) - ❓ Not logged`);
     }
   }
 
