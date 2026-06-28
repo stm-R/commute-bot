@@ -9,18 +9,23 @@ const client = new Client({
 });
 
 // ─── Build the daily commute question message ───────────────────────────────
-function buildCommuteMessage(dateStr) {
+function buildCommuteMessage(dateStr, opts = {}) {
+  const { testMode = false } = opts;
+  const customIdPrefix = testMode ? 'commute_test' : 'commute';
+
   const embed = new EmbedBuilder()
-    .setColor(0x5865F2)
-    .setTitle('🚗 Daily Commute Log')
-    .setDescription(`How did you commute today?\n**${dateStr}**`)
+    .setColor(testMode ? 0xFEE75C : 0x5865F2)
+    .setTitle(testMode ? '🧪 Commute Log Test' : '🚗 Daily Commute Log')
+    .setDescription(testMode
+      ? `Test run: pick how you would commute today.\n**${dateStr}**`
+      : `How did you commute today?\n**${dateStr}**`)
     .setFooter({ text: 'Select your commute type below' })
     .setTimestamp();
 
   const rows = [];
   const buttons = COMMUTE_TYPES.map(type =>
     new ButtonBuilder()
-      .setCustomId(`commute:${dateStr}:${type.id}`)
+      .setCustomId(`${customIdPrefix}:${dateStr}:${type.id}`)
       .setLabel(type.label)
       .setEmoji(type.emoji)
       .setStyle(ButtonStyle.Primary)
@@ -62,6 +67,8 @@ client.on('interactionCreate', async interaction => {
       await handleReport(interaction);
     } else if (interaction.commandName === 'log') {
       await handleManualLog(interaction);
+    } else if (interaction.commandName === 'test') {
+      await handleTestPrompt(interaction);
     } else if (interaction.commandName === 'help') {
       await handleHelp(interaction);
     }
@@ -72,24 +79,47 @@ client.on('interactionCreate', async interaction => {
   if (!interaction.isButton()) return;
 
   const [prefix, dateStr, commuteId] = interaction.customId.split(':');
-  if (prefix !== 'commute') return;
+  if (prefix !== 'commute' && prefix !== 'commute_test') return;
 
   const commuteType = COMMUTE_TYPES.find(t => t.id === commuteId);
   if (!commuteType) return;
 
-  storage.setEntry(dateStr, commuteType.id);
+  const isTestInteraction = prefix === 'commute_test';
+
+  if (!isTestInteraction) {
+    storage.setEntry(dateStr, commuteType.id);
+  }
 
   // Update the message to show confirmation and remove buttons
   const embed = new EmbedBuilder()
-    .setColor(0x57F287)
-    .setTitle('✅ Commute Logged')
-    .setDescription(`**${dateStr}**\n${commuteType.emoji} ${commuteType.label}`)
-    .setFooter({ text: 'You can change this with /log' })
+    .setColor(isTestInteraction ? 0xFEE75C : 0x57F287)
+    .setTitle(isTestInteraction ? '🧪 Test Selection Recorded' : '✅ Commute Logged')
+    .setDescription(isTestInteraction
+      ? `Would log:\n**${dateStr}**\n${commuteType.emoji} ${commuteType.label}`
+      : `**${dateStr}**\n${commuteType.emoji} ${commuteType.label}`)
+    .setFooter({ text: isTestInteraction ? 'Test mode only: no data was saved' : 'You can change this with /log' })
     .setTimestamp();
 
   await interaction.update({ embeds: [embed], components: [] });
-  console.log(`[Bot] Logged ${dateStr}: ${commuteType.id}`);
+  if (isTestInteraction) {
+    console.log(`[Bot] Test selection ${dateStr}: ${commuteType.id} (not persisted)`);
+  } else {
+    console.log(`[Bot] Logged ${dateStr}: ${commuteType.id}`);
+  }
 });
+
+// ─── /test command (simulate cron prompt without persistence) ───────────────
+async function handleTestPrompt(interaction) {
+  const dateStr = new Date().toISOString().split('T')[0];
+  const msg = buildCommuteMessage(dateStr, { testMode: true });
+
+  await interaction.reply({
+    content: '🧪 Test prompt. Your selection will not be saved.',
+    embeds: msg.embeds,
+    components: msg.components
+  });
+  console.log(`[Bot] Sent test prompt for ${dateStr} (no persistence)`);
+}
 
 // ─── /report command ─────────────────────────────────────────────────────────
 async function handleReport(interaction) {
@@ -195,6 +225,10 @@ async function handleHelp(interaction) {
         value: 'Show this help message.'
       },
       {
+        name: '/test',
+        value: 'Send a test prompt that behaves like the daily cron message, but does not persist any selection.'
+      },
+      {
         name: '🚌 Commute Types',
         value: typeList
       }
@@ -205,7 +239,7 @@ async function handleHelp(interaction) {
 }
 
 // ─── Bot ready ───────────────────────────────────────────────────────────────
-client.once('ready', () => {
+client.once('clientReady', () => {
   console.log(`[Bot] Logged in as ${client.user.tag}`);
   console.log(`[Bot] Scheduling daily prompt: ${CRON_SCHEDULE} (${TIMEZONE})`);
 

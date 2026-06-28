@@ -10,6 +10,7 @@ A Discord bot that sends you a daily prompt to log your commute, stores the data
 - **Persistent storage** in a Docker volume (JSON file)
 - **`/report`** — full monthly report with all days, weekends auto-filled
 - **`/log`** — manually log or correct any day, including weekend commutes
+- **`/test`** — send a test prompt and preview what would be logged (no persistence)
 - **`/help`** — help overview
 
 ---
@@ -100,6 +101,13 @@ Example:
 
 ### `/help`
 Shows command overview and commute type list.
+
+### `/test`
+Sends a test prompt in the channel that behaves like the daily cron prompt.
+
+- Uses the same commute buttons as the scheduled prompt
+- Selected value is shown as a preview ("would log")
+- Nothing is written to persistent storage
 
 ---
 

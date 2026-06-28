@@ -39,6 +39,10 @@ const commands = [
   new SlashCommandBuilder()
     .setName('help')
     .setDescription('Show help for commute bot commands'),
+
+  new SlashCommandBuilder()
+    .setName('test')
+    .setDescription('Send a test commute prompt without persisting any selected result'),
 ].map(cmd => cmd.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(token);
