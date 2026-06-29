@@ -18,8 +18,13 @@ function ensureFile() {
 function load() {
   ensureFile();
   try {
-    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-  } catch {
+    const raw = fs.readFileSync(DATA_FILE, 'utf8');
+
+    // Tolerate common hand-edit mistakes like trailing commas.
+    const normalized = raw.replace(/,\s*([}\]])/g, '$1');
+    return JSON.parse(normalized);
+  } catch (err) {
+    console.error(`[Storage] Failed to parse ${DATA_FILE}: ${err.message}`);
     return {};
   }
 }
