@@ -1,6 +1,10 @@
 services:
   commute-bot:
-    build: .
+    container_name: commute-bot
+    build:
+      context: .
+      args:
+        TIMEZONE: ${TIMEZONE}
     restart: unless-stopped
     environment:
       # ── Required ──────────────────────────────────────────────────────────
@@ -9,6 +13,7 @@ services:
       DISCORD_CHANNEL_ID: ${DISCORD_CHANNEL_ID}
       CRON_SCHEDULE: ${CRON_SCHEDULE}
       TIMEZONE: ${TIMEZONE}
+      TZ: ${TIMEZONE}
       DAYS_OFF: ${DAYS_OFF}
 
       # ── Optional ──────────────────────────────────────────────────────────
