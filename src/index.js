@@ -431,6 +431,7 @@ client.once('clientReady', () => {
   console.log(`[Bot] Logged in as ${client.user.tag}`);
   console.log(`[Bot] Scheduling daily prompt: ${CRON_SCHEDULE} (${TIMEZONE})`);
   console.log(`[Bot] Configured days off: ${DAYS_OFF.length ? DAYS_OFF.join(',') : 'none'}`);
+  console.log(`[Bot] Active commute types: ${COMMUTE_TYPES.map(t => `${t.id}:${t.label}`).join(', ')}`);
 
   if (!cron.validate(CRON_SCHEDULE)) {
     console.error(`[Bot] Invalid CRON_SCHEDULE: ${CRON_SCHEDULE}`);

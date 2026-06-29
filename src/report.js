@@ -52,7 +52,9 @@ function generateReport(year, month) {
     if (logged) {
       // Either a workday or a non-work day with override
       const commuteType = COMMUTE_TYPES.find(t => t.id === logged);
-      const label = commuteType ? `${commuteType.emoji} ${commuteType.label}` : logged;
+      const label = commuteType
+        ? `${commuteType.emoji} ${commuteType.label}`
+        : `❌ Invalid type (${logged})`;
       const tag = isWeekend ? ' (weekend)' : (isConfiguredDayOff ? ' (day off)' : '');
       lines.push(`${dateStr} (${dayLabel}) - ${label}${tag}`);
 
@@ -62,7 +64,7 @@ function generateReport(year, month) {
       }
 
       // Add to summary for workdays only
-      if (!isNonWorkDay) {
+      if (!isNonWorkDay && commuteType) {
         summary[logged] = (summary[logged] || 0) + 1;
       }
     } else if (isNonWorkDay) {
