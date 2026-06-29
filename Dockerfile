@@ -2,14 +2,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-ARG TIMEZONE=Europe/Amsterdam
-
 # Provide timezone database so TZ env is respected by OS-level time utilities.
 RUN apk add --no-cache tzdata
-
-# Set the image's OS timezone at build time.
-RUN ln -snf "/usr/share/zoneinfo/${TIMEZONE}" /etc/localtime \
-	&& echo "${TIMEZONE}" > /etc/timezone
 
 # Install dependencies
 COPY package.json ./
@@ -26,7 +20,6 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 RUN mkdir -p /data
 
 ENV DATA_DIR=/data
-ENV TZ=${TIMEZONE}
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
