@@ -36,6 +36,19 @@ A Discord bot that sends you a daily prompt to log your commute, stores the data
 2. Right-click the channel you want the bot to post in → **Copy Channel ID**
 3. This is your `DISCORD_CHANNEL_ID`
 
+### 2.1 Add The Bot To That Channel
+
+Make sure the bot can access the selected channel.
+
+1. Open the target channel settings → **Permissions**
+2. Add the bot (or bot role) to the channel permissions
+3. Allow at least:
+  - **View Channel**
+  - **Send Messages**
+  - **Embed Links**
+
+If the bot can run slash commands but cannot post scheduled prompts, this channel-level permission step is usually the cause.
+
 ### 3. Configure the App
 
 ```bash
@@ -65,6 +78,8 @@ docker compose up -d
 ```
 
 The bot will start and send a daily prompt every weekday at **08:00 Amsterdam time** (configurable).
+
+If logs show `DiscordAPIError[50001]: Missing Access`, verify the bot has **View Channel** in the configured `DISCORD_CHANNEL_ID` channel.
 
 ---
 
