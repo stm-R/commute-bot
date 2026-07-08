@@ -63,8 +63,8 @@ function generateReport(year, month) {
         loggedDays++;
       }
 
-      // Add to summary for workdays only
-      if (!isNonWorkDay && commuteType) {
+      // Summary reflects all logged valid entries in the month, including overrides.
+      if (commuteType) {
         summary[logged] = (summary[logged] || 0) + 1;
       }
     } else if (isNonWorkDay) {
