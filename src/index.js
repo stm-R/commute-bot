@@ -1,7 +1,6 @@
 const {
   Client,
   GatewayIntentBits,
-  EmbedBuilder,
   MessageFlags
 } = require('discord.js');
 const cron = require('node-cron');
@@ -14,7 +13,9 @@ const { buildCommuteMessage } = require('./messages/commute-prompt');
 const { handleHelp } = require('./command-handlers/help');
 const { handleManualLog } = require('./command-handlers/log');
 const { handleTestPrompt } = require('./command-handlers/test');
-const { handleReport, handleReportMonthSelect } = require('./command-handlers/report');
+const { handleReport } = require('./command-handlers/report');
+const { handleButtonInteraction } = require('./interactions/buttons');
+const { handleSelectMenuInteraction } = require('./interactions/selects');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
@@ -123,70 +124,14 @@ client.on('interactionCreate', async interaction => {
     }
 
     // ── Select menus ────────────────────────────────────────────────────────
-    const isStringSelect = interaction.isStringSelectMenu();
-    if (isStringSelect) {
-      console.log(`[Debug] Select menu detected | string=${isStringSelect} customId=${interaction.customId}`);
-      const [prefix, action, userId] = interaction.customId.split(':');
-      if (prefix === 'report' && action === 'month') {
-        await handleReportMonthSelect(interaction, userId);
-      }
+    if (interaction.isStringSelectMenu()) {
+      await handleSelectMenuInteraction(interaction);
       return;
     }
 
     // ── Button clicks ───────────────────────────────────────────────────────
     if (!interaction.isButton()) return;
-
-    const [prefix, dateStr, commuteId] = interaction.customId.split(':');
-    if (prefix !== 'commute' && prefix !== 'commute_test') return;
-
-    const commuteType = COMMUTE_TYPES.find(t => t.id === commuteId);
-    if (!commuteType) return;
-
-    const isTestInteraction = prefix === 'commute_test';
-
-    if (!isTestInteraction) {
-      storage.setEntry(dateStr, commuteType.id);
-    }
-
-    // ── Handle modal submission ──────────────────────────────────────────────
-    if (interaction.isModalSubmit()) {
-      if (interaction.customId === 'vacationModal') {
-        const endDate = interaction.fields.getTextInputValue('endDate');
-
-        // Validate the date format
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
-          return interaction.reply({
-            content: 'Please use the format YYYY-MM-DD for the date.',
-            ephemeral: true
-          });
-        }
-
-        // Save the vacation end date to your database
-        // await saveVacationEndDate(interaction.user.id, endDate);
-
-        await interaction.reply({
-          content: `Vacation mode set! You won't receive commute prompts until ${endDate}.`,
-          ephemeral: true
-        });
-      }
-    }
-
-    // Update the message to show confirmation and remove buttons
-    const embed = new EmbedBuilder()
-      .setColor(isTestInteraction ? 0xFEE75C : 0x57F287)
-      .setTitle(isTestInteraction ? '🧪 Test Selection Recorded' : '✅ Commute Logged')
-      .setDescription(isTestInteraction
-        ? `Would log:\n**${dateStr}**\n${commuteType.emoji} ${commuteType.label}`
-        : `**${dateStr}**\n${commuteType.emoji} ${commuteType.label}`)
-      .setFooter({ text: isTestInteraction ? 'Test mode only: no data was saved' : 'You can change this with /log' })
-      .setTimestamp();
-
-    await interaction.update({ embeds: [embed], components: [] });
-    if (isTestInteraction) {
-      console.log(`[Bot] Test selection ${dateStr}: ${commuteType.id} (not persisted)`);
-    } else {
-      console.log(`[Bot] Logged ${dateStr}: ${commuteType.id}`);
-    }
+    await handleButtonInteraction(interaction);
   } catch (err) {
     console.error('[Debug] interactionCreate handler error:', err);
     try {
