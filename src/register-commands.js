@@ -43,6 +43,27 @@ const commands = [
   new SlashCommandBuilder()
     .setName('test')
     .setDescription('Send a test commute prompt without persisting any selected result'),
+
+  new SlashCommandBuilder()
+  .setName('vacation')
+  .setDescription('Manage your vacation status')
+  .addSubcommand(subcommand =>
+    subcommand
+      .setName('status')
+      .setDescription('View your current vacation status'))
+  .addSubcommand(subcommand =>
+    subcommand
+      .setName('set')
+      .setDescription('Set a new vacation period')
+      .addStringOption(option =>
+        option.setName('end_date')
+          .setDescription('End date of your vacation (YYYY-MM-DD)')
+          .setRequired(true)))
+  .addSubcommand(subcommand =>
+    subcommand
+      .setName('off')
+      .setDescription('Turn off vacation mode early')),   
+
 ].map(cmd => cmd.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(token);

@@ -1,7 +1,19 @@
-const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
+const {
+  Client,
+  GatewayIntentBits,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  EmbedBuilder,
+  StringSelectMenuBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  MessageFlags
+} = require('discord.js');
 const cron = require('node-cron');
 const storage = require('./storage');
 const { generateReport } = require('./report');
+const { handleVacation, isUserOnVacation } = require('./command-handlers/vacation');
 const { COMMUTE_TYPES, COMMUTE_EMOJI, CRON_SCHEDULE, TIMEZONE, DAYS_OFF, TARGET_CHANNEL_ID } = require('./config');
 
 const client = new Client({
@@ -92,6 +104,11 @@ async function sendDailyPrompt() {
 
     console.log(`[Bot] Cron tick at ${nowTz.dateStr} ${nowTz.timeStr} (${TIMEZONE}), weekday=${weekday}`);
 
+    if (isUserOnVacation) {
+      console.log(`[Bot] Skipping daily prompt because user is on vacation`);
+      return;
+    }
+    
     if (DAYS_OFF.includes(weekday)) {
       console.log(`[Bot] Skipping daily prompt for configured day off (weekday=${weekday})`);
       return;
@@ -173,6 +190,8 @@ client.on('interactionCreate', async interaction => {
         await handleTestPrompt(interaction);
       } else if (interaction.commandName === 'help') {
         await handleHelp(interaction);
+      } else if (interaction.commandName === 'vacation') {
+        await handleVacation(interaction);
       }
       return;
     }
@@ -203,6 +222,29 @@ client.on('interactionCreate', async interaction => {
       storage.setEntry(dateStr, commuteType.id);
     }
 
+    // ── Handle modal submission ──────────────────────────────────────────────
+    if (interaction.isModalSubmit()) {
+      if (interaction.customId === 'vacationModal') {
+        const endDate = interaction.fields.getTextInputValue('endDate');
+
+        // Validate the date format
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+          return interaction.reply({
+            content: 'Please use the format YYYY-MM-DD for the date.',
+            ephemeral: true
+          });
+        }
+
+        // Save the vacation end date to your database
+        // await saveVacationEndDate(interaction.user.id, endDate);
+
+        await interaction.reply({
+          content: `Vacation mode set! You won't receive commute prompts until ${endDate}.`,
+          ephemeral: true
+        });
+      }
+    }
+
     // Update the message to show confirmation and remove buttons
     const embed = new EmbedBuilder()
       .setColor(isTestInteraction ? 0xFEE75C : 0x57F287)
@@ -230,6 +272,7 @@ client.on('interactionCreate', async interaction => {
     }
   }
 });
+
 
 // ─── /test command (simulate cron prompt without persistence) ───────────────
 async function handleTestPrompt(interaction) {
