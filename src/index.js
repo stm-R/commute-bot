@@ -3,7 +3,6 @@ const {
   GatewayIntentBits,
   ActionRowBuilder,
   EmbedBuilder,
-  StringSelectMenuBuilder,
   MessageFlags
 } = require('discord.js');
 const cron = require('node-cron');
@@ -14,6 +13,7 @@ const { COMMUTE_TYPES, COMMUTE_EMOJI, CRON_SCHEDULE, TIMEZONE, DAYS_OFF, TARGET_
 const { getNowInTimezoneParts } = require('./utils/time');
 const { logInteractionDebug } = require('./utils/logging');
 const { buildCommuteMessage } = require('./messages/commute-prompt');
+const { buildReportEmbed, buildReportMonthMenu } = require('./messages/report-embed');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
@@ -239,55 +239,6 @@ async function handleReport(interaction) {
     components: [row],
     flags: MessageFlags.Ephemeral
   });
-}
-
-function buildReportMonthMenu(userId) {
-  const now = new Date();
-  const options = [];
-
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const year = d.getFullYear();
-    const month = d.getMonth();
-    const value = `${year}-${String(month + 1).padStart(2, '0')}`;
-    const label = `${d.toLocaleString('en-US', { month: 'long' })} ${year}`;
-
-    options.push({
-      label,
-      value,
-      description: i === 0 ? 'Current month' : undefined
-    });
-  }
-
-  return new StringSelectMenuBuilder()
-    .setCustomId(`report:month:${userId}`)
-    .setPlaceholder('Choose a month')
-    .addOptions(options);
-}
-
-function buildReportEmbed(report) {
-  const embed = new EmbedBuilder()
-    .setColor(0x5865F2)
-    .setTitle(`📋 Commute Report — ${report.monthLabel}`)
-    .setDescription(`\`\`\`text\n${report.lines.join('\n')}\n\`\`\``)
-    .addFields(
-      { name: 'Total work days', value: `${report.workDays}`, inline: true },
-      { name: 'Logged days', value: `${report.loggedDays}`, inline: true },
-      { name: 'Missing', value: `${report.missingDays}`, inline: true }
-    )
-    .setFooter({ text: 'Weekends are shown. Configured day-off weekdays appear as blank unless overridden with /log' });
-
-  if (Object.keys(report.summary).length > 0) {
-    const summaryLines = Object.entries(report.summary)
-      .map(([id, count]) => {
-        const type = COMMUTE_TYPES.find(t => t.id === id);
-        return `${type ? type.emoji : ''} ${type ? type.label : id}: **${count}**`;
-      })
-      .join('\n');
-    embed.addFields({ name: 'Summary', value: summaryLines });
-  }
-
-  return embed;
 }
 
 async function handleReportMonthSelect(interaction, expectedUserId) {
