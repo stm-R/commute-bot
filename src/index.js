@@ -15,6 +15,7 @@ const storage = require('./storage');
 const { generateReport } = require('./report');
 const { handleVacation, isUserOnVacation } = require('./command-handlers/vacation');
 const { COMMUTE_TYPES, COMMUTE_EMOJI, CRON_SCHEDULE, TIMEZONE, DAYS_OFF, TARGET_CHANNEL_ID } = require('./config');
+const { getNowInTimezoneParts } = require('./utils/time');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
@@ -37,30 +38,6 @@ function logInteractionDebug(interaction, context) {
   console.log(
     `[Debug] ${context} | kind=${kind} target=${target} user=${interaction.user?.id || '-'} values=${values}`
   );
-}
-
-function getNowInTimezoneParts(timeZone) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  }).formatToParts(new Date());
-
-  const get = type => parts.find(p => p.type === type)?.value;
-  const dateStr = `${get('year')}-${get('month')}-${get('day')}`;
-  const timeStr = `${get('hour')}:${get('minute')}:${get('second')}`;
-
-  return {
-    weekdayAbbrev: get('weekday'),
-    dateStr,
-    timeStr
-  };
 }
 
 // ─── Build the daily commute question message ───────────────────────────────
