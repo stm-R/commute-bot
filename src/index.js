@@ -14,6 +14,9 @@ const { getNowInTimezoneParts } = require('./utils/time');
 const { logInteractionDebug } = require('./utils/logging');
 const { buildCommuteMessage } = require('./messages/commute-prompt');
 const { buildReportEmbed, buildReportMonthMenu } = require('./messages/report-embed');
+const { handleHelp } = require('./command-handlers/help');
+const { handleManualLog } = require('./command-handlers/log');
+const { handleTestPrompt } = require('./command-handlers/test');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
@@ -199,19 +202,6 @@ client.on('interactionCreate', async interaction => {
 });
 
 
-// ─── /test command (simulate cron prompt without persistence) ───────────────
-async function handleTestPrompt(interaction) {
-  const dateStr = new Date().toISOString().split('T')[0];
-  const msg = buildCommuteMessage(dateStr, { testMode: true });
-
-  await interaction.reply({
-    content: '🧪 Test prompt. Your selection will not be saved.',
-    embeds: msg.embeds,
-    components: msg.components
-  });
-  console.log(`[Bot] Sent test prompt for ${dateStr} (no persistence)`);
-}
-
 // ─── /report command ─────────────────────────────────────────────────────────
 async function handleReport(interaction) {
   console.log(`[Debug] /report invoked by ${interaction.user.id}`);
@@ -273,76 +263,6 @@ async function handleReportMonthSelect(interaction, expectedUserId) {
     embeds: [embed],
     components: []
   });
-}
-
-// ─── /log command (manual entry / weekend override) ─────────────────────────
-async function handleManualLog(interaction) {
-  const dateArg = interaction.options.getString('date'); // YYYY-MM-DD
-  const commuteId = interaction.options.getString('type');
-
-  let dateStr;
-  if (dateArg) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateArg)) {
-      return interaction.reply({ content: '❌ Invalid date format. Use `YYYY-MM-DD`', flags: MessageFlags.Ephemeral });
-    }
-    dateStr = dateArg;
-  } else {
-    dateStr = new Date().toISOString().split('T')[0];
-  }
-
-  const commuteType = COMMUTE_TYPES.find(t => t.id === commuteId);
-  if (!commuteType) {
-    return interaction.reply({ content: '❌ Unknown commute type.', flags: MessageFlags.Ephemeral });
-  }
-
-  storage.setEntry(dateStr, commuteId);
-
-  const embed = new EmbedBuilder()
-    .setColor(0x57F287)
-    .setTitle('✅ Commute Logged')
-    .setDescription(`**${dateStr}**\n${commuteType.emoji} ${commuteType.label}`)
-    .setTimestamp();
-
-  await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-  console.log(`[Bot] Manual log ${dateStr}: ${commuteId}`);
-}
-
-// ─── /help command ───────────────────────────────────────────────────────────
-async function handleHelp(interaction) {
-  const typeList = COMMUTE_TYPES.map(t => `${t.emoji} \`${t.id}\` — ${t.label}`).join('\n');
-
-  const embed = new EmbedBuilder()
-    .setColor(0xFEE75C)
-    .setTitle('📖 Commute Bot — Help')
-    .addFields(
-      {
-        name: '🔔 Daily Prompt',
-        value: 'Every weekday morning the bot sends a message with buttons to log your commute. Just click the button!'
-      },
-      {
-        name: '/report [month]',
-        value: 'Generate a monthly commute report.\nIf `month` is omitted, you can choose a month from a picker.\nOptional `month` format: `YYYY-MM` (example: `/report month:2025-06`).'
-      },
-      {
-        name: '/log [date] <type>',
-        value: 'Manually log or correct a commute entry.\n`date` is optional, format `YYYY-MM-DD` (defaults to today).\nUse this to log **weekend commutes** or fix mistakes.\nExample: `/log date:2025-06-07 type:car`'
-      },
-      {
-        name: '/help',
-        value: 'Show this help message.'
-      },
-      {
-        name: '/test',
-        value: 'Send a test prompt that behaves like the daily cron message, but does not persist any selection.'
-      },
-      {
-        name: '🚌 Commute Types',
-        value: typeList
-      }
-    )
-    .setFooter({ text: 'Weekend days appear as "Weekend" in reports unless you log them with /log' });
-
-  await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
 // ─── Bot ready ───────────────────────────────────────────────────────────────
