@@ -1,21 +1,11 @@
-const fs = require('fs');
-const path = require('path');
-
-const DATA_DIR = process.env.DATA_DIR;
-const VACATION_DIR = path.join(DATA_DIR, '..', 'data', 'vacations');
-
-// Ensure directory exists
-if (!fs.existsSync(VACATION_DIR)) {
-  fs.mkdirSync(VACATION_DIR, { recursive: true });
-}
+const { getVacationEndDate, saveVacationEndDate } = require('../vacation-storage');
 
 // ─── /vacation command (set vacation period) ────────────────────────────────
 async function handleVacation(interaction) {
   const subcommand = interaction.options.getSubcommand();
-  const userId = interaction.user.id;
 
   if (subcommand === 'status') {
-    const currentEndDate = await getVacationEndDate(userId);
+    const currentEndDate = await getVacationEndDate();
 
     if (!currentEndDate) {
       return interaction.reply({
@@ -40,7 +30,7 @@ async function handleVacation(interaction) {
       ephemeral: true
     });
   } else if (subcommand === 'off') {
-    const currentEndDate = await getVacationEndDate(userId);
+    const currentEndDate = await getVacationEndDate();
 
     if (!currentEndDate) {
       return interaction.reply({
@@ -50,7 +40,7 @@ async function handleVacation(interaction) {
     }
 
     try {
-      await saveVacationEndDate(userId, null);
+      await saveVacationEndDate(null);
       return interaction.reply({
         content: '✅ Vacation mode turned off. You will now receive commute prompts as normal.',
         ephemeral: true
@@ -112,7 +102,7 @@ async function handleVacation(interaction) {
 
     // Save to file
     try {
-      await saveVacationEndDate(userId, endDateStr);
+      await saveVacationEndDate(endDateStr);
       await interaction.reply({
         content: `✅ Vacation mode set! You won't receive commute prompts until ${endDateStr}.`,
         ephemeral: true
@@ -127,45 +117,4 @@ async function handleVacation(interaction) {
   }
 }
 
-// vacation storage functions
-function getVacationFile(userId) {
-  return path.join(VACATION_DIR, `${userId}.txt`);
-}
-
-async function getVacationEndDate(userId) {
-  const filePath = getVacationFile(userId);
-  if (!fs.existsSync(filePath)) return null;
-
-  try {
-    const data = fs.readFileSync(filePath, 'utf8');
-    return data.trim() || null;
-  } catch (error) {
-    console.error(`Error reading vacation file for ${userId}:`, error);
-    return null;
-  }
-}
-
-async function saveVacationEndDate(userId, endDate) {
-  const filePath = getVacationFile(userId);
-
-  try {
-    if (endDate) {
-      fs.writeFileSync(filePath, endDate);
-    } else {
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
-  } catch (error) {
-    console.error(`Error saving vacation file for ${userId}:`, error);
-    throw error;
-  }
-}
-
-async function isUserOnVacation(userId) {
-  const endDateStr = await getVacationEndDate(userId);
-  if (!endDateStr) return false;
-  return true;
-}
-
-module.exports = { handleVacation, isUserOnVacation };
+module.exports = { handleVacation };
