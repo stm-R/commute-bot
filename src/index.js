@@ -1,21 +1,14 @@
 const {
   Client,
-  GatewayIntentBits,
-  MessageFlags
+  GatewayIntentBits
 } = require('discord.js');
 const cron = require('node-cron');
 const storage = require('./storage');
-const { handleVacation, isUserOnVacation } = require('./command-handlers/vacation');
+const { isUserOnVacation } = require('./command-handlers/vacation');
 const { COMMUTE_TYPES, COMMUTE_EMOJI, CRON_SCHEDULE, TIMEZONE, DAYS_OFF, TARGET_CHANNEL_ID } = require('./config');
 const { getNowInTimezoneParts } = require('./utils/time');
-const { logInteractionDebug } = require('./utils/logging');
 const { buildCommuteMessage } = require('./messages/commute-prompt');
-const { handleHelp } = require('./command-handlers/help');
-const { handleManualLog } = require('./command-handlers/log');
-const { handleTestPrompt } = require('./command-handlers/test');
-const { handleReport } = require('./command-handlers/report');
-const { handleButtonInteraction } = require('./interactions/buttons');
-const { handleSelectMenuInteraction } = require('./interactions/selects');
+const { router } = require('./interactions/router');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
@@ -102,48 +95,7 @@ async function sendDailyPrompt() {
   }
 }
 
-// ─── Handle button interactions ─────────────────────────────────────────────
-client.on('interactionCreate', async interaction => {
-  try {
-    logInteractionDebug(interaction, 'Received interaction');
-
-    // ── Slash commands ──────────────────────────────────────────────────────
-    if (interaction.isChatInputCommand()) {
-      if (interaction.commandName === 'report') {
-        await handleReport(interaction);
-      } else if (interaction.commandName === 'log') {
-        await handleManualLog(interaction);
-      } else if (interaction.commandName === 'test') {
-        await handleTestPrompt(interaction);
-      } else if (interaction.commandName === 'help') {
-        await handleHelp(interaction);
-      } else if (interaction.commandName === 'vacation') {
-        await handleVacation(interaction);
-      }
-      return;
-    }
-
-    // ── Select menus ────────────────────────────────────────────────────────
-    if (interaction.isStringSelectMenu()) {
-      await handleSelectMenuInteraction(interaction);
-      return;
-    }
-
-    // ── Button clicks ───────────────────────────────────────────────────────
-    if (!interaction.isButton()) return;
-    await handleButtonInteraction(interaction);
-  } catch (err) {
-    console.error('[Debug] interactionCreate handler error:', err);
-    try {
-      if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-        await interaction.reply({ content: '❌ Something went wrong while handling this interaction.', flags: MessageFlags.Ephemeral });
-      }
-    } catch (replyErr) {
-      console.error('[Debug] Failed to send error reply:', replyErr);
-    }
-  }
-});
-
+client.on('interactionCreate', router);
 
 // ─── Bot ready ───────────────────────────────────────────────────────────────
 client.once('clientReady', () => {
