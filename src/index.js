@@ -2,12 +2,8 @@ const {
   Client,
   GatewayIntentBits,
   ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   EmbedBuilder,
   StringSelectMenuBuilder,
-  TextInputBuilder,
-  TextInputStyle,
   MessageFlags
 } = require('discord.js');
 const cron = require('node-cron');
@@ -17,41 +13,11 @@ const { handleVacation, isUserOnVacation } = require('./command-handlers/vacatio
 const { COMMUTE_TYPES, COMMUTE_EMOJI, CRON_SCHEDULE, TIMEZONE, DAYS_OFF, TARGET_CHANNEL_ID } = require('./config');
 const { getNowInTimezoneParts } = require('./utils/time');
 const { logInteractionDebug } = require('./utils/logging');
+const { buildCommuteMessage } = require('./messages/commute-prompt');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
-
-// ─── Build the daily commute question message ───────────────────────────────
-function buildCommuteMessage(dateStr, opts = {}) {
-  const { testMode = false } = opts;
-  const customIdPrefix = testMode ? 'commute_test' : 'commute';
-
-  const embed = new EmbedBuilder()
-    .setColor(testMode ? 0xFEE75C : 0x5865F2)
-    .setTitle(testMode ? '🧪 Commute Log Test' : '🚗 Daily Commute Log')
-    .setDescription(testMode
-      ? `Test run: pick how you would commute today.\n**${dateStr}**`
-      : `How did you commute today?\n**${dateStr}**`)
-    .setFooter({ text: 'Select your commute type below' })
-    .setTimestamp();
-
-  const rows = [];
-  const buttons = COMMUTE_TYPES.map(type =>
-    new ButtonBuilder()
-      .setCustomId(`${customIdPrefix}:${dateStr}:${type.id}`)
-      .setLabel(type.label)
-      .setEmoji(type.emoji)
-      .setStyle(ButtonStyle.Primary)
-  );
-
-  // Split buttons into rows of max 5
-  for (let i = 0; i < buttons.length; i += 5) {
-    rows.push(new ActionRowBuilder().addComponents(buttons.slice(i, i + 5)));
-  }
-
-  return { embeds: [embed], components: rows };
-}
 
 // ─── Send the daily prompt ──────────────────────────────────────────────────
 async function sendDailyPrompt() {
