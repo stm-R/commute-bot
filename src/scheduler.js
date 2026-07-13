@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const storage = require('./storage');
-const { isUserOnVacation } = require('./vacation-storage');
+const { isUserOnVacation } = storage;
 const { CRON_SCHEDULE, TIMEZONE, DAYS_OFF, TARGET_CHANNEL_ID } = require('./config');
 const { getNowInTimezoneParts } = require('./utils/time');
 const { buildCommuteMessage } = require('./messages/commute-prompt');

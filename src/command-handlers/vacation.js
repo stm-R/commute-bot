@@ -1,4 +1,4 @@
-const { getVacationEndDate, saveVacationEndDate } = require('../vacation-storage');
+const { getVacationEndDate, saveVacationEndDate } = require('../storage');
 
 // ─── /vacation command (set vacation period) ────────────────────────────────
 async function handleVacation(interaction) {
